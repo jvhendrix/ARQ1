@@ -1,0 +1,25 @@
+Símbolo         Valor Decimal   Valor Hexadecimal
+-------         -------------   -----------------
+_KERNEL                     0                   0
+_VETTAB                   256                 100
+_RESET                    512                 200
+_APP                    32768                8000
+_IOAREA16               65408                FF80
+_IOAREA08               65472                FFC0
+IVET                    65470                FFBE
+TIMDT                   65495                FFD7
+INTS                    65496                FFD8
+INTE                    65497                FFD9
+TECST                   65498                FFDA
+TECDT                   65499                FFDB
+VISOR                   65500                FFDC
+GETCHAR                   516                 204
+PUTCHAR                   517                 205
+PUTMSG                    518                 206
+CLR_VISOR                 519                 207
+KBHIT                     520                 208
+GET_TIMER                 521                 209
+CLR_TIMER                 522                 20A
+GET_TIMER_ON              523                 20B
+SET_TIMER_ON              524                 20C
+GET_SPEED                 525                 20D

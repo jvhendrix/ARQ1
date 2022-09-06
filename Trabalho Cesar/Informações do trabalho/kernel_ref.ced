@@ -1,0 +1,171 @@
+;
+;
+;******************************************************************************
+;
+;	Arquivo de Referência para o desenvolvimento do kernel.
+;
+;	Versão: 2022.1
+;
+;	Áreas de memória
+;
+;	0000 - 7FFF		_KERNEL
+;					Área de Kernel para implementação dos alunos
+;
+;	0100 - 01FF		_VETTAB
+;					Tabela com os vetores das funções do kernel
+;					*** CUIDADO! Esse vetor está no meio da área de código ***
+;
+;	8000 - FF7F		_APP
+;					Área onde será colocado o programa de aplicação.
+;					Esse programa vai fazer o acesso aos periféricos e interrupções, através das funções do Kernel.
+;
+;	FF80 - FFBF 	_IOAREA16
+;					Area de perifericos, acessada na base 16 bits
+;
+;	FFC0 - FFFF		_IOAREA08
+;					Area de perifericos, acessada na base 8 bits
+;					
+;******************************************************************************
+
+
+_KERNEL:	equ	h0000
+_VETTAB:	equ	h0100
+_RESET:		equ	_VETTAB+H0100
+_APP:		equ	h8000
+_IOAREA16:	equ	hFF80
+_IOAREA08:	equ	hFFC0
+
+
+;
+;------------------------------------------------------------------------------
+;	Área reservada para os periféricos
+;------------------------------------------------------------------------------
+
+; Acesso em 16 bits
+		org		_IOAREA16
+		daw		[31]
+IVET:	dw		0			; Vetor de interrupção
+
+; Acesso em 8 bits
+		org		_IOAREA08
+		dab		[23]
+TIMDT:	db		0			; Registro de programação do timer
+INTS:	db		0			; INTERRUPT STATUS: IP x x x . x x IPStec IPStim
+INTE:	db		0			; INTERRUPT ENABLE: IE x x x . x x IEStec IEStim
+TECST:	db		0			; Status do teclado
+TECDT:	db		0			; Dado do teclado
+VISOR:	dab		[36]		; Portas de acesso ao visor
+
+;	
+;------------------------------------------------------------------------------
+;	Ponto de entrada do RESET do processador
+;------------------------------------------------------------------------------
+		org		_KERNEL
+		jmp		_RESET
+
+;
+;------------------------------------------------------------------------------
+;	Area do kernel com os vetores das funções do kernel
+;------------------------------------------------------------------------------
+		org		_VETTAB
+		
+		dw		getchar			; BYTE	getchar()
+		dw		putchar			; void	putchar(BYTE c, WORD pos)
+		dw		putmsg			; void	putmsg(BYTE *msg, WORD pos)
+		dw		clr_visor		; void	clr_visor()
+		dw		kbhit			; WORD	kbhit()
+		dw		get_timer		; WORD	get_timer()
+		dw		clr_timer		; void	clr_timer()
+		dw		get_timer_on	; WORD	get_timer_on()
+		dw		set_timer_on	; void	set_timer_on(WORD on)
+		dw		get_speed		; WORD	get_speed()
+
+		
+;	
+;------------------------------------------------------------------------------
+;	Código de RESET (BOOT) do processador/interrupção
+;------------------------------------------------------------------------------
+		org		_RESET
+; 1) Desabilitar o sistema de interrupções
+; 2) Inicializar o stack pointer (SP = R6)
+; 3) Inicializar as variáveis internas usadas pelo sistema de interrupções e periféricos (IVET, INTE, etc.)
+; 4) Inicializar as variáveis internas do kernel
+; 5) Inicializar o teclado zerando o byte de estado (TECST, endereço 65498)
+; 6) Inicializar o timer
+; 7) Limpar o visor
+; 8) Habilitar interrupções
+; 9) Retornar para o programa de aplicação com um desvio para o endereço _APP da memória
+		jmp		_APP
+
+;		
+;------------------------------------------------------------------------------
+; BYTE	getchar()
+;------------------------------------------------------------------------------
+getchar:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; void	putchar(BYTE c, WORD pos)
+;------------------------------------------------------------------------------
+putchar:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; void	putmsg(BYTE *msg, WORD pos)
+;------------------------------------------------------------------------------
+putmsg:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; void	clr_visor()
+;------------------------------------------------------------------------------
+clr_visor:
+		rts		r7
+		
+;		
+;------------------------------------------------------------------------------
+; WORD	kbhit()
+;------------------------------------------------------------------------------
+kbhit:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; WORD	get_timer()
+;------------------------------------------------------------------------------
+get_timer:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; void	clr_timer()
+;------------------------------------------------------------------------------
+clr_timer:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; WORD	get_timer_on()
+;------------------------------------------------------------------------------
+get_timer_on:
+		rts		r7
+
+;		
+;------------------------------------------------------------------------------
+; void	set_timer_on(WORD on)
+;------------------------------------------------------------------------------
+set_timer_on:
+		rts		r7
+		
+;		
+;------------------------------------------------------------------------------
+; WORD	get_speed()
+;------------------------------------------------------------------------------
+get_speed:
+		rts		r7
+		
+
+

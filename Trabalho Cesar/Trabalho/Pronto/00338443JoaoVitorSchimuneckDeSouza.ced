@@ -1,0 +1,425 @@
+;
+;
+;******************************************************************************
+;
+;	Arquivo de Referência para o desenvolvimento do kernel.
+;
+;	Versão: 2022.1
+;
+;	Áreas de memória
+;
+;	0000 - 7FFF		_KERNEL
+;					Área de Kernel para implementação dos alunos
+;
+;	0100 - 01FF		_VETTAB
+;					Tabela com os vetores das funções do kernel
+;					*** CUIDADO! Esse vetor está no meio da área de código ***
+;
+;	8000 - FF7F		_APP
+;					Área onde será colocado o programa de aplicação.
+;					Esse programa vai fazer o acesso aos periféricos e interrupções, através das funções do Kernel.
+;
+;	FF80 - FFBF 		_IOAREA16
+;					Area de perifericos, acessada na base 16 bits
+;
+;	FFC0 - FFFF		_IOAREA08
+;					Area de perifericos, acessada na base 8 bits
+;					
+;******************************************************************************
+
+
+_KERNEL:	equ	h0000
+_VETTAB:	equ	h0100
+_RESET:		equ	_VETTAB+H0100
+_APP:		equ	h8000
+_IOAREA16:	equ	hFF80
+_IOAREA08:	equ	hFFC0
+
+
+;
+;------------------------------------------------------------------------------
+;	Área reservada para os periféricos
+;------------------------------------------------------------------------------
+
+; Acesso em 16 bits
+		org		_IOAREA16
+		daw		[31]
+IVET:	dw		0			; Vetor de interrupção
+
+; Acesso em 8 bits
+		org		_IOAREA08
+		dab		[23]
+TIMDT:	db		0			; Registro de programação do timer
+INTS:	db		0			; INTERRUPT STATUS: IP x x x . x x IPStec IPStim
+INTE:	db		0			; INTERRUPT ENABLE: IE x x x . x x IEStec IEStim
+TECST:	db		0			; Status do teclado
+TECDT:	db		0			; Dado do teclado
+VISOR:	dab		[36]			; Portas de acesso ao visor
+
+;	
+;------------------------------------------------------------------------------
+;	Ponto de entrada do RESET do processador
+;------------------------------------------------------------------------------
+		org		_KERNEL
+		jmp		_RESET
+
+;
+;------------------------------------------------------------------------------
+;	Area do kernel com os vetores das funções do kernel
+;------------------------------------------------------------------------------
+		org		_VETTAB
+		
+		dw		getchar			; BYTE	getchar()
+		dw		putchar			; void	putchar(BYTE c, WORD pos)
+		dw		putmsg			; void	putmsg(BYTE *msg, WORD pos)
+		dw		clr_visor		; void	clr_visor()
+		dw		kbhit			; WORD	kbhit()
+		dw		get_timer		; WORD	get_timer()
+		dw		clr_timer		; void	clr_timer()
+		dw		get_timer_on		; WORD	get_timer_on()
+		dw		set_timer_on		; void	set_timer_on(WORD on)
+		dw		get_speed		; WORD	get_speed()
+
+		
+;	
+;------------------------------------------------------------------------------
+;	Código de RESET (BOOT) do processador/interrupção
+;------------------------------------------------------------------------------
+		
+		org		_RESET
+
+; 1) Desabilitar o sistema de interrupções
+
+		clr 	INTE						;; Zerando todos os bits de INTE para desabilitar interrupções
+		clr		INTS					;; Zerando status das interrupções		
+
+; 2) Inicializar o stack pointer (SP = R6)
+		
+		mov 	#h7FFF, R6					;; Inicializando pilha no último endereço do kernel
+; 
+; 3) Inicializar as variáveis internas usadas pelo sistema de interrupções e periféricos (IVET, INTE, etc.)
+
+		mov 	#isr, IVET						
+
+; 4) Inicializar as variáveis internas do kernel
+
+		clr 	R0						;; Zerando todos os registradores
+		clr 	R1						;;
+		clr 	R2						;;
+		clr 	R3						;;
+		clr 	R4						;;
+		clr 	R5						;;
+
+		clr 	tecBuff						;; Zerando as variáveis
+		clr		timer					;;
+		clr		speed					;;
+
+; 5) Inicializar o teclado zerando o byte de estado (TECST, endereço 65498)
+
+		clr		TECDT
+		clr 	TECST
+
+; 6) Inicializar o timer
+
+		mov		#1, TIMDT				;; Inicializar o timer com temporizador de 1 segundo
+		clr		timer					;; Limpar o timer
+
+; 7) Limpar o visor
+
+		jsr 	R7, clr_visor
+
+; 8) Habilitar interrupções
+
+		mov 	#h83, INTE
+
+; 9) Retornar para o programa de aplicação com um desvio para o endereço _APP da memória
+				
+		jmp		_APP
+
+;		
+;------------------------------------------------------------------------------
+; BYTE	getchar()
+;------------------------------------------------------------------------------
+getchar:
+
+loop_getchar:
+
+		or 		#2, INTS			;; Ligar status da interrupção do teclado
+		
+		tst 	tecBuff					;; Verifica se há caractere em tecBuff
+		beq 	getchar					;; Se não houver, volta para o loop
+
+		mov 	tecBuff, r0				;; Se houver, mover o caractere para r0
+		clr 	tecBuff					;; Limpar tecBuff
+		
+		rts		R7				;; Retorno da subrotina
+
+;		
+;------------------------------------------------------------------------------
+; void	putchar(BYTE c, WORD pos) (r5 caractere e r4 posição)
+;------------------------------------------------------------------------------
+putchar:
+		
+		cmp		r5, #h20			;; Se o caractere for menor que h20, ir para end_putchar
+		blt		end_putchar			;;
+
+		cmp		r5, #h7A			;; Se o caractere for maior que h7A, ir para end_putchar
+		bgt		end_putchar			;;
+		
+		mov 	#VISOR, R3				;; Coloca o endereço do visor em r3
+		add 	R4, R3					;; Soma r4 (posição) com r3 (endereço do visor)
+		mov 	R5, (R3)				;; Move r5 (caractere) para o visor
+		
+		end_putchar:
+
+		rts		r7				;; Retorno da subrotina
+
+;		
+;------------------------------------------------------------------------------
+; void	putmsg(BYTE *msg, WORD pos) (r5 end início string e r4 posição string)
+;------------------------------------------------------------------------------
+putmsg:
+		
+		dec 	R5					;; Endereço da string - 1 (caractere é lido do byte menos significativo)
+		mov 	R5, R1					;; Coloca o endereço de inicio da string em R1
+
+loop_put_msg:
+
+		mov 	(R1), R5				;; Coloca o caractere em R5
+		and 	#h00FF, R5				;; Máscara lógica para verificar o byte menos significativo
+		tst 	R5					;; Atualizar flags de acordo com R5
+		
+		beq 	fim_loop_put_msg			;; Se for igual a zero (final da string), pula para fim do loop
+										;; else					
+		jsr 	R7, putchar				;; Chama a função putchar(BYTE c, WORD pos)
+											
+
+		inc 	R1					;; Incrementa R1
+		inc 	R4					;; Incrementa R4
+
+		cmp		r4, #36				;; Verifica se a posição do caractere no visor é válida
+		beq		fim_loop_put_msg		;; Se não for, ir para o final do loop
+
+		jmp 	loop_put_msg				;; Volta para o loop
+
+fim_loop_put_msg:
+
+		rts		R7				;; Retorno da subrotina
+
+
+;		
+;------------------------------------------------------------------------------
+; void	clr_visor()
+;------------------------------------------------------------------------------
+clr_visor:
+		
+		mov 	#VISOR, R4				;; Coloca o endereço do visor em R4
+
+	loop_clr_visor:
+
+		mov 	#h20, (R4)				;; Coloca o caractere no enderço de R4
+		inc 	R4						;; Incrementa R4
+		cmp 	R4, #VISOR+35				;; Verifica se R4 já está na última posição
+		bne 	loop_clr_visor				;; Se ainda não estiver na última posição, voltar para o loop
+
+		mov 	#h20, (R4)				;; Coloca o caractere no ultimo endereco
+		rts		r7				;; Retorno da subrotina 
+		
+;		
+;------------------------------------------------------------------------------
+; WORD	kbhit()
+;------------------------------------------------------------------------------
+kbhit:
+		
+		tst 	tecBuff					;; Verifica se há tecla
+		beq 	nao_tem_tecla				;; Se não houver tecla, ir para nao_tem_tecla
+
+	tem_tecla:						;; else
+		
+		mov 	#0, r0					;; Se houver tecla, mover 0 para r 0
+		jmp		end_kbhit			;; Jump para o retorno da subrotina
+
+	nao_tem_tecla:
+
+		mov 	#'@', r0				;; Se não houver tecla, mover '@' para r0
+
+	end_kbhit:
+
+		rts		r7				;; Retorno da subrotina
+
+;		
+;------------------------------------------------------------------------------
+; WORD	get_timer()
+;------------------------------------------------------------------------------
+get_timer:
+		
+		mov 	timer, r0				;; Move o valor do timer para r0
+		rts		r7				;; Retorno da subrotina
+
+;		
+;------------------------------------------------------------------------------
+; void	clr_timer()
+;------------------------------------------------------------------------------
+clr_timer:
+		
+		clr 	timer					;; Limpa o valor do timer						
+		rts		r7				;; Retorno da subrotina
+
+;		
+;------------------------------------------------------------------------------
+; WORD	get_timer_on()
+;------------------------------------------------------------------------------
+get_timer_on:
+		
+		mov		INTE, r0			;; Mover INTE para r0
+		and		#1, r0				;; Máscara para verificar se a interrupção está ligada (0000-0001 and XXXX-XXXX = 0000-000X)
+								;; Se ela estiver ligada, o resultado será 0000-0001, caso contrário ela está desligada e o resultado será 0000-0000
+								;; OBS: o resultado (0000-000X) será armazenado em r0
+		rts		r7				;; Retorno da subrotina
+
+;		
+;------------------------------------------------------------------------------
+; void	set_timer_on(WORD on)
+;------------------------------------------------------------------------------
+set_timer_on:
+		
+		tst		r5				;; Verifica o valor de r5 (0 = desligado ; 1 = ligado)
+		beq		timer_desligado			;; Se estiver desligado, ir para timer_desligado
+
+	timer_ligado:						;; else
+
+		or		#1, INTE			;; Máscara para ligar a interrupção (0000-0001 or XXXX-XXXX = XXXX-XXX1)
+		jmp 	end_set_timer_on			;; jmp para o final da subrotina
+
+	timer_desligado:
+
+		and 	#hFE, INTE				;; Máscara para desligar a interrupção (1111-1110 and XXXX-XXXX = XXXX-XXX0)
+		
+	end_set_timer_on:
+
+		rts		r7				;; Retorno da subrotina
+		
+;		
+;------------------------------------------------------------------------------
+; WORD	get_speed()
+;------------------------------------------------------------------------------
+get_speed:
+		
+		mov		speed, r0			;; Move o valor de speed para r0
+		rts		r7
+
+
+;------------------------------------------------------------------------------
+; Serviços de Interrupção
+;------------------------------------------------------------------------------
+		
+isr: 
+
+
+										
+		mov 	r0, -(r6)				;; Salva o valor de todos os registradores	
+		mov 	r1, -(r6)				;;
+		mov 	r2, -(r6)				;;
+		mov 	r3, -(r6)				;;
+		mov 	r4, -(r6)				;;
+		mov 	r5, -(r6)				;;
+
+		
+		
+	verifica_isr_timer:	
+		
+		mov 	INTS, r0				;; Move o valor de INTS para r0
+		and 	#1, r0					;; Máscara para testar se houve interrupção do timer (0000-00001 and XXXX-XXXX = 0000-000X)
+		
+		beq 	verifica_isr_teclado			;; Se não há interrupção do timer, verificar interrupção do teclado
+
+		jsr 	r7, isr_timer				;; Subrotina interrupção do timer
+		and		#hFFFE, INTS			;; Desliga o status da interrupção do timer (1111-1110 and XXXX-XXXXX = XXXX-XXX0)
+										
+
+	verifica_isr_teclado:
+
+		mov 	INTS, r0				;; Move o valor de INTS para o r0
+		and		#2, r0				;; Máscara para testar se houve interrupção do teclado (0000-00010 and XXXX-XXXX = 0000-00X0)
+		
+		beq 	isr3					;; Se não houve interrupção, pular para isr3
+
+		jsr 	r7, isr_tec				;; Subrotina interrupção do teclado
+		and		#hFFFD, INTS			;; Desliga o status da interrupção do teclado (1111-1101 and XXXX-XXXX = XXXX-XX0X)
+
+
+isr3:
+
+
+		mov 	(r6)+, r5				;; Bloco final da interrupção, coloca os valores originais em todos registradores
+		mov 	(r6)+, r4				;;
+		mov 	(r6)+, r3				;;
+		mov 	(r6)+, r2				;;
+		mov 	(r6)+, r1				;;
+		mov 	(r6)+, r0				;;
+
+		rti						;; Retorno da interrupção
+
+
+isr_tec:
+
+		tst 	TECST					;; Verifica se uma tecla foi digitada
+		beq 	end_isr_tec				;; Se não houve tecla digitada, pular para o fim
+
+
+		cmp 	#'+', TECDT				;; Verifica se a tecla é '+'
+		beq		inc_speed			;; Se a tecla digitada for '+', ir para inc_speed
+		
+		cmp		#'-', TECDT			;; Verifica se a tecla é '-'
+		beq		dec_speed			;; Se a tecla digitada for '+', ir para dec_speed
+
+										;; Se não for nenhum desses caracteres, colocar caractere no buffer normalmente
+
+		mov 	TECDT, tecBuff				;; Se houve tecla digitada (diferente de '+' e '-'), mover o caractere de TECDT para tecBuff
+
+	
+	end_isr_tec:
+
+		clr		TECST				;; Limpar TECST
+		rts 	r7					;; Retorno da subrotina 
+
+	
+	
+	
+	inc_speed:
+		
+		cmp		speed, #99			;; Comparar speed com 99
+		bgt		end_inc_speed			;; Se for maior que 99, ir para end_inc_speed (Quando chegar a 100, speed não será mais incrementado)
+								;; else
+		inc 	speed					;; Incrementar speed em 1
+		
+		end_inc_speed:
+
+		jmp 	end_isr_tec				;; Fim de inc_speed, ir para final da interrupção do teclado
+
+	dec_speed:
+		
+		tst		speed				;; Testar speed
+		beq		end_dec_speed			;; Se for 0, ir para end_dec_speed (se speed for 0, speed não será decrementado)
+								;; else
+		dec		speed				;; Decrementar speed					
+
+		end_dec_speed:
+
+		jmp		end_isr_tec			;; Fim de dec_speed, ir para final da interrupção do teclado
+
+
+
+isr_timer:
+		
+		inc		timer				;; Incrementar o timer (cada incremento vale 1 ms)	
+		rts		r7				;; Retorno da subrotina
+
+;------------------------------------------------------------------------------
+; Variáveis
+;------------------------------------------------------------------------------
+
+tecBuff:		dw	0				;; Buffer do teclado
+speed:			dw  	0				;; Velocidade
+timer:			dw	0				;; Timer
+

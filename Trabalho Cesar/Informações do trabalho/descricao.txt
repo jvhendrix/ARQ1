@@ -1,0 +1,20 @@
+
+Nesse diretório você vai encontrar vários arquivos, necessários para desenvolver o trabalho do CESAR
+
+Os primeiros arquivos dizem respeito à especificação do trabalho propriamente dito.
+São os seguintes:
+	- Apresentacao2022_1.pdf - descrição geral sobre o trabalho.
+	- TrabalhoCesar2022_1.pdf - detalhamento do trabalho, que envolve o desenvolvimento de um kernel.
+	- FuncoesDoKernel2022_1.pdf - detalhamento das funções do kernel a ser implementado.
+	- kernel_ref.ced - arquivo fonte para ser usado como ponto de partida para a implementação.
+
+Os outros arquivos são fornecidos para facilitar o teste de seu kernel.
+Esses arquivos devem ser carregados na região que corresponde às aplicações (ver especificação do espaço de endereçamento)
+	- App2022_1.pdf - Fluxograma de cada uma das 3 aplicações
+	- app1.mem - Aplicação usada para teste de getchar, putchar, putmsg e clr_visor
+	- app2.mem - Aplicação usada para teste de kbhit, get_timer, clr_timer, get_timer_on, set_timer_on
+	- app3.mem - Aplicação usada para teste de get_speed
+	
+	
+
+
