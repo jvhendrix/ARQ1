@@ -20,9 +20,12 @@ file_handle_src	dw		0				; Handler do arquivo origem
 file_handle_dst	dw		0				; Handler do arquivo destino
 file_buffer		db		10 dup (?)		; Buffer de leitura/escrita do arquivo
 
+crypto_string	db		100	dup (?)		; Frase para ser encriptada
+
 msg_pede_arquivo_src	db	"Nome do arquivo origem: ", 0
 msg_erro_open_file		db	"Erro na abertura do arquivo.", CR, LF, 0
 msg_erro_create_file	db	"Erro na criacao do arquivo.", CR, LF, 0
+msg_ask_crypto_string	db	"Entre com a frase para ser encriptada: ", 0
 MsgErroReadFile			db	"Erro na leitura do arquivo.", CR, LF, 0
 MsgErroWriteFile		db	"Erro na escrita do arquivo.", CR, LF, 0
 
@@ -50,10 +53,26 @@ String	db		MAXSTRING dup (?)		; Usado na funcao gets
 
 	call	getFileName					; Lê o nome do arquivo e coloca extensões
 										; (file_name_src(.txt) e file_name_dst(.krp))
+
 	lea 	dx, file_name_src			; Coloca o endereço de file_name_src em dx
-	call	openFile					; Abre o arquivo file_name_src.txt
+	call	openFile					; Abre o arquivo file_name_src
 	mov		file_handle_src, bx			; Coloca o handle do arquivo em file_handle_src
 	jc		erro_open_file				; Se houve erro, ir para erro_open_file
+	
+	lea		dx, file_name_dst			; Coloca o endereço de file_name_dst em dx
+	call	createFile					; Cria um arquivo com nome file_name_dst
+	mov		file_handle_dst, bx			; Coloca o handle do arquivo em file_handle_dst
+	jc		erro_create_file			; Se houve erro, ir para erro_create_file
+
+	call	getCryptoString				; Lê a frase para ser encriptada (crypto_string)
+	
+	
+	
+	
+	
+	
+	
+	
 	.exit	 0
 
 ;--------------------------------------------------------------------
@@ -67,6 +86,10 @@ erro_open_file:
 	call	printf_s					; Printa a string
 	.exit 	1
 
+erro_create_file:
+	lea		bx, msg_erro_create_file	; Coloca o enderelo de msg_erro_create_file em bx
+	call 	printf_s					; Printa a string
+	.exit	1
 
 
 ;--------------------------------------------------------------------
@@ -111,6 +134,22 @@ getFileName	proc	near
 getFileName	endp
 
 
+
+getCryptoString	proc	near
+
+	lea		bx, msg_ask_crypto_string		; Coloca o endereço de msg_ask_crypto_string em bx
+	call	printf_s						; Printa a string
+
+	lea		bx, crypto_string				; Coloca o endereço de crypto_string em bx
+	call	gets							; Coloca a string para ser encriptada em crypto_string
+
+	lea		bx, msg_crlf					; Coloca o endereço de msg_crlf em bx
+	call	printf_s						; Printa a string ("\r\n") (nova linha, no começo da linha)
+
+	ret
+
+getCryptoString	endp
+
 ;--------------------------------------------------------------------
 ;gets
 ;
@@ -145,6 +184,8 @@ gets	endp
 ;	
 ;	Essa função coloca a extensão em uma string
 ;
+;	Entradas:
+;
 ;	bx = endereço da string com nome do arquivo
 ;	cx = tamanho da string com a extensão a ser colocada
 ;	dx = endereço da string com a extensão a ser colocada
@@ -172,13 +213,19 @@ putFileExtenstion	proc	near
 
 putFileExtenstion	endp
 
-
 ;--------------------------------------------------------------------
 ;openFile
 ;	
-;	Essa função abre um arquivo (bx = handle do arquivo e cf = 0 se ok)
+;	Essa função abre um arquivo
+;
+;	Entradas:
 ;
 ;	dx = endereço da string com nome do arquivo
+;	
+;	Saídas:
+;	
+;	bx = handle do arquivo
+;	cf = 0 se ok
 ;--------------------------------------------------------------------
 openFile	proc	near
 
@@ -192,13 +239,40 @@ openFile	proc	near
 openFile	endp
 
 ;--------------------------------------------------------------------
+;createFile
+;
+;	Essa função cria um arquivo 
+;
+;	Entradas:
+;
+;	dx = endereço da string com nome do arquivo
+;
+;	Saídas:
+;
+;	bx = handle do arquivo
+;	cf = 0 se ok
+;--------------------------------------------------------------------
+createFile		proc	near
+
+	mov		cx,0
+	mov		ah,3ch
+	int		21h
+	mov		bx,ax
+	ret
+
+createFile		endp
+
+;--------------------------------------------------------------------
 ;copyFileName
 ;	
 ;	Essa função copia uma string para outra string
 ;
+;	Entradas:
+;
 ;	bx = endereço da string original
 ;	cx = tamanho da string original
 ;	dx = endereço da string destino
+;
 ;--------------------------------------------------------------------
 copyFileName	proc	near
 
