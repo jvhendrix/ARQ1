@@ -16,14 +16,13 @@ LF		equ		0ah
 
 file_name_src	db		256 dup (?)		; Nome do arquivo a ser lido
 file_name_dst	db		256 dup (?)		; Nome do arquivo a ser escrito
-FileHandleSrc	dw		0				; Handler do arquivo origem
-FileHandleDst	dw		0				; Handler do arquivo destino
-FileBuffer		db		10 dup (?)		; Buffer de leitura/escrita do arquivo
+file_handle_src	dw		0				; Handler do arquivo origem
+file_handle_dst	dw		0				; Handler do arquivo destino
+file_buffer		db		10 dup (?)		; Buffer de leitura/escrita do arquivo
 
 msg_pede_arquivo_src	db	"Nome do arquivo origem: ", 0
-MsgPedeArquivoDst		db	"Nome do arquivo destino: ", 0
-MsgErroOpenFile			db	"Erro na abertura do arquivo.", CR, LF, 0
-MsgErroCreateFile		db	"Erro na criacao do arquivo.", CR, LF, 0
+msg_erro_open_file		db	"Erro na abertura do arquivo.", CR, LF, 0
+msg_erro_create_file	db	"Erro na criacao do arquivo.", CR, LF, 0
 MsgErroReadFile			db	"Erro na leitura do arquivo.", CR, LF, 0
 MsgErroWriteFile		db	"Erro na escrita do arquivo.", CR, LF, 0
 
@@ -42,35 +41,38 @@ String	db		MAXSTRING dup (?)		; Usado na funcao gets
 	.code
 	.startup
 
-	call	getFileName
-		
-	;lea		bx, file_name_src
-	;call  	printf_s
-	;lea		bx, msg_crlf
-	;call	printf_s
 
-	;lea		bx, file_name_dst
-	;call  	printf_s
-	;lea		bx, msg_crlf
-	;call	printf_s	
+;--------------------------------------------------------------------
+;
+;							Main
+;
+;--------------------------------------------------------------------
 
-	;lea		bx, file_extenstion_txt
-	;call  	printf_s
-	;lea		bx, msg_crlf
-	;call	printf_s
+	call	getFileName					; Lê o nome do arquivo e coloca extensões
+										; (file_name_src(.txt) e file_name_dst(.krp))
+	lea 	dx, file_name_src			; Coloca o endereço de file_name_src em dx
+	call	openFile					; Abre o arquivo file_name_src.txt
+	mov		file_handle_src, bx			; Coloca o handle do arquivo em file_handle_src
+	jc		erro_open_file				; Se houve erro, ir para erro_open_file
+	.exit	 0
 
-	;lea		bx, file_extenstion_krp
-	;call  	printf_s
-	;lea		bx, msg_crlf
-	;call	printf_s		
-		
+;--------------------------------------------------------------------
+;
+;							Erros
+;
+;--------------------------------------------------------------------
 
-	.exit 0
+erro_open_file:
+	lea		bx, msg_erro_open_file		; Coloca o endereço de msg_erro_open_file em bx
+	call	printf_s					; Printa a string
+	.exit 	1
+
 
 
 ;--------------------------------------------------------------------
 ;getFileName
-;Funcao para ler o nome do arqvuio a ser lido
+;
+;	Funcao para ler o nome do arquivo
 ;--------------------------------------------------------------------
 getFileName	proc	near
 	
@@ -115,7 +117,6 @@ getFileName	endp
 ;	Função lê um string do teclado e coloca no buffer apontado por BX
 ;
 ;	bx = endereço da string que terá o nome do arquivo
-;
 ;--------------------------------------------------------------------
 gets	proc	near
 	
@@ -171,6 +172,25 @@ putFileExtenstion	proc	near
 
 putFileExtenstion	endp
 
+
+;--------------------------------------------------------------------
+;openFile
+;	
+;	Essa função abre um arquivo (bx = handle do arquivo e cf = 0 se ok)
+;
+;	dx = endereço da string com nome do arquivo
+;--------------------------------------------------------------------
+openFile	proc	near
+
+	mov		al, 0
+	mov		ah, 3dh
+	int		21h
+	mov		bx, ax							; Coloca o handle do arquivo em bx
+	
+	ret
+
+openFile	endp
+
 ;--------------------------------------------------------------------
 ;copyFileName
 ;	
@@ -198,10 +218,9 @@ copyFileName		endp
 ;copyFileName
 ;	
 ;	Essa função calcula o tamanho de uma string
-;	(Retorna o tamanho da stirng em cx)
+;	(Retorna o tamanho da string em cx)
 ;	
 ;	bx = endereço da string
-;
 ;--------------------------------------------------------------------
 getStringLenght	proc	near
 
@@ -227,7 +246,6 @@ getStringLenght		endp
 ;	Essa função printa uma string na tela
 ;	
 ;	bx = endereço da string
-;
 ;====================================================================
 printf_s	proc	near
 	
