@@ -15,7 +15,7 @@ LF		equ		0ah
 	.data
 
 file_name_src	db		256 dup (?)		; Nome do arquivo a ser lido
-FileNameDst		db		256 dup (?)		; Nome do arquivo a ser escrito
+file_name_dst	db		256 dup (?)		; Nome do arquivo a ser escrito
 FileHandleSrc	dw		0				; Handler do arquivo origem
 FileHandleDst	dw		0				; Handler do arquivo destino
 FileBuffer		db		10 dup (?)		; Buffer de leitura/escrita do arquivo
@@ -43,8 +43,27 @@ String	db		MAXSTRING dup (?)		; Usado na funcao gets
 	.startup
 
 	call	getFileName
-	lea		bx, file_name_src
-	call	printf_s
+		
+	;lea		bx, file_name_src
+	;call  	printf_s
+	;lea		bx, msg_crlf
+	;call	printf_s
+
+	;lea		bx, file_name_dst
+	;call  	printf_s
+	;lea		bx, msg_crlf
+	;call	printf_s	
+
+	;lea		bx, file_extenstion_txt
+	;call  	printf_s
+	;lea		bx, msg_crlf
+	;call	printf_s
+
+	;lea		bx, file_extenstion_krp
+	;call  	printf_s
+	;lea		bx, msg_crlf
+	;call	printf_s		
+		
 
 	.exit 0
 
@@ -61,13 +80,30 @@ getFileName	proc	near
 	lea		bx, file_name_src				; Coloca o endereço de file_name_src em bx
 	call	gets							; Coloca nome do arquivo em file_name_src
 
-	lea		bx, file_name_src				; Coloca o endereço de file_name_src em bx
-	lea		cx, file_extenstion_txt			; Coloca o endereço de file_extension_txt em cx
-	call 	putFileExtenstion				; Coloca extensão em file_name_src
-
 	lea		bx, msg_crlf					; Coloca o endereço de msg_crlf em bx
 	call	printf_s						; Printa a string ("\r\n") (nova linha, no começo da linha)
+
+	lea		bx, file_name_src				; Coloca o endereço de file_name_src em bx
+	call	getStringLenght					; Calcula o tamanho de file_name_src (coloca em cx)
 	
+	lea		bx, file_name_src				; Coloca o endereço de file_name_src em bx
+	lea		dx, file_name_dst				; Coloca o endereço de file_name_dst em dx
+	call	copyFileName					; Copia o nome do arquivo para file_name_dst
+
+	lea		bx, file_extenstion_txt			; Coloca o endereço de file_extenstion_txt em bx
+	call	getStringLenght					; Calcula o tamanho de file_extenstion_txt (coloca em cx)
+
+	lea		bx, file_name_src				; Coloca o endereço de file_name_src em bx
+	lea		dx, file_extenstion_txt			; Coloca o endereço de file_extension_txt em dx
+	call 	putFileExtenstion				; Coloca extensão em file_name_src
+
+	lea		bx, file_extenstion_krp			; Coloca o endereço de file_extension_krp em bx
+	call	getStringLenght					; Calcula o tamanho de file_extension_krp (coloca em cx)
+		
+	lea		bx, file_name_dst				; Coloca o endereço de file_name_dst em bx
+	lea		dx, file_extenstion_krp			; Coloca o endereço de file_extension_krp em cx
+	call 	putFileExtenstion				; Coloca extensão em file_name_dst
+
 	ret
 
 getFileName	endp
@@ -79,6 +115,7 @@ getFileName	endp
 ;	Função lê um string do teclado e coloca no buffer apontado por BX
 ;
 ;	bx = endereço da string que terá o nome do arquivo
+;
 ;--------------------------------------------------------------------
 gets	proc	near
 	
@@ -108,7 +145,8 @@ gets	endp
 ;	Essa função coloca a extensão em uma string
 ;
 ;	bx = endereço da string com nome do arquivo
-;	cx = endereço da string com a extensão a ser colocada
+;	cx = tamanho da string com a extensão a ser colocada
+;	dx = endereço da string com a extensão a ser colocada
 ;--------------------------------------------------------------------
 putFileExtenstion	proc	near	
 	
@@ -123,19 +161,65 @@ putFileExtenstion	proc	near
 		jmp		loop_putFileExtenstion		; Voltar para o loop
 
 	end_loop_putFileExtenstion:	
-	
+
 	mov		di, bx							; Coloca o endereço final da string em di
-	mov		si, cx							; Coloca o endereço da string da extensão do arquivo em si
+	mov		si, dx							; Coloca o endereço da string da extensão do arquivo em si
+
 	rep		movsb							; Copia a extensão para a string do nome do arquivo
-	
-	mov		byte ptr es:[di], 0				; Coloca a marca de fim da string
+
 	ret
 
 putFileExtenstion	endp
 
+;--------------------------------------------------------------------
+;copyFileName
+;	
+;	Essa função copia uma string para outra string
+;
+;	bx = endereço da string original
+;	cx = tamanho da string original
+;	dx = endereço da string destino
+;--------------------------------------------------------------------
+copyFileName	proc	near
+
+	mov		ax,ds							; Ajusta ES=DS para poder usar o MOVSB
+	mov		es,ax							;
+
+	mov 	di, dx							; Coloca o endereço da string destino em di
+	mov		si, bx							; Coloca o endereço da string original em si
+	rep		movsb							; Copia string original para string destino
+
+	ret
+
+copyFileName		endp
 
 
+;--------------------------------------------------------------------
+;copyFileName
+;	
+;	Essa função calcula o tamanho de uma string
+;	(Retorna o tamanho da stirng em cx)
+;	
+;	bx = endereço da string
+;
+;--------------------------------------------------------------------
+getStringLenght	proc	near
 
+	mov		cx, 1							; Inicializa cx em 1
+
+	loop_getStringLenght:
+		
+		cmp		[bx], 0						; Verifica se a string está no final
+		je		end_getStringLenght			; Se for NULL, sair do loop
+											; Caso contrário,
+		inc		cx							; Incrementa cx
+		inc		bx							; Incrementa bx
+		jmp		loop_getStringLenght		; Volta para o loop
+
+	end_getStringLenght:
+	ret			
+
+getStringLenght		endp
 
 ;====================================================================
 ;printf_s		
@@ -143,8 +227,8 @@ putFileExtenstion	endp
 ;	Essa função printa uma string na tela
 ;	
 ;	bx = endereço da string
+;
 ;====================================================================
-
 printf_s	proc	near
 	
 	mov		dl,[bx]
@@ -164,3 +248,6 @@ ps_1:
 printf_s	endp
 
 	end
+
+
+
