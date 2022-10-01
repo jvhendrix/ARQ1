@@ -267,15 +267,13 @@ gets	proc	near
 	mov		byte ptr es:[di],0			; Coloca marca de fim de string
 	ret
 gets	endp
-
-;====================================================================
-; A partir daqui, est�o as fun��es j� desenvolvidas
-;	1) printf_s
-;====================================================================
 	
 ;--------------------------------------------------------------------
-;Fun��o Escrever um string na tela
-;		printf_s(char *s -> BX)
+;printf_s
+;		
+;	Essa função printa uma string na tela
+;
+;	bx = endereço da
 ;--------------------------------------------------------------------
 printf_s	proc	near
 	mov		dl,[bx]
