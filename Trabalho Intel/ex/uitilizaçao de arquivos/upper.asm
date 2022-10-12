@@ -129,6 +129,7 @@ TerminouArquivo:
 	call	fclose
 	mov		bx,FileHandleDst	; Fecha arquivo destino
 	call	fclose
+
 	.exit	0
 
 		
@@ -224,6 +225,8 @@ getChar	proc	near
 	lea		dx,FileBuffer
 	int		21h
 	mov		dl,FileBuffer
+	lea		bx, FileBuffer
+	call	printf_s
 	ret
 getChar	endp
 		
@@ -241,7 +244,6 @@ setChar	proc	near
 	int		21h
 	ret
 setChar	endp	
-
 
 ;
 ;--------------------------------------------------------------------
@@ -267,13 +269,15 @@ gets	proc	near
 	mov		byte ptr es:[di],0			; Coloca marca de fim de string
 	ret
 gets	endp
+
+;====================================================================
+; A partir daqui, est�o as fun��es j� desenvolvidas
+;	1) printf_s
+;====================================================================
 	
 ;--------------------------------------------------------------------
-;printf_s
-;		
-;	Essa função printa uma string na tela
-;
-;	bx = endereço da
+;Fun��o Escrever um string na tela
+;		printf_s(char *s -> BX)
 ;--------------------------------------------------------------------
 printf_s	proc	near
 	mov		dl,[bx]
